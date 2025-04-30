@@ -1,0 +1,32 @@
+---
+- hosts: web
+  become: true
+  tasks:
+    - name: Install required packages
+      apt:
+        name:
+          - docker.io
+          - nginx
+          - git
+        state: present
+        update_cache: yes
+
+    - name: Start Docker
+      service:
+        name: docker
+        state: started
+        enabled: yes
+
+    - name: Initialize Docker Swarm
+      shell: docker swarm init || true
+
+    - name: Copy NGINX config
+      copy:
+        src: ../nginx/default.conf
+        dest: /etc/nginx/sites-available/default
+
+    - name: Restart NGINX
+      service:
+        name: nginx
+        state: restarted
+
