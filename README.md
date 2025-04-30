@@ -1,37 +1,96 @@
-# Yii2 Docker Swarm Deployment with Ansible and GitHub Actions
+Docker Swarm Deployment for Yii2 PHP App
 
-This project demonstrates a DevOps pipeline that deploys a Yii2 PHP application using Docker Swarm, NGINX (host-based reverse proxy), GitHub Actions (CI/CD), and Ansible on an AWS EC2 instance.
+Introduction
 
+This project demonstrates deploying a Yii2 PHP application using Docker Swarm on an EC2 instance. It includes infrastructure automation with Ansible and a CI/CD pipeline using GitHub Actions.
+
+Docker Swarm Deployment
+ I’ve created a basic Dockerfile for a Yii2 PHP application and a Docker Compose file to define the service. The app is deployed as a Docker Swarm service on an EC2 instance.
+
+Steps:
+Log into the EC2 instance and initialize Docker Swarm.
+
+Run the following command to deploy the stack:
+
+docker stack deploy -c docker-compose.yml yii2
+This launches the Yii2 app container on port 8080.
+
+Dockerfile
+================
+
+FROM php:7.4-apache
+
+RUN docker-php-ext-install pdo pdo_mysql
+
+COPY . /var/www/html/
+
+
+
+Docker Compose File
+============================
+version: "3.8"
+
+services:
+  yii2-app:
+    image: ashutosh1999/yii2-app:latest
+    ports:
+      - "8080:80"
+    deploy:
+      replicas: 1
+      restart_policy:
+        condition: on-failure
+
+
+Running Service
+To verify the service is running, use the following command:
+
+docker service ls
+
+
+NGINX Host-Based Proxy
+I configured NGINX directly on the EC2 host. The NGINX reverse proxy listens on port 80 and forwards requests to port 8080, where the Yii2 container runs.
+
+NGINX Configuration File
+=====================
+server {
+    listen 80;
+    server_name yourdomain.com;
+
+    location / {
+        proxy_pass http://18.212.71.237:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+    }
+}
+
+
+Deploying NGINX
+I copied the NGINX config file to /etc/nginx/sites-available/default, and then restarted the NGINX service.
+
+To verify NGINX is running, use the following:
+
+open http://18.212.71.237/ in your browser.
+
+ Infrastructure Automation with Ansible
+I used Ansible to automate the EC2 setup. The playbook installs Docker, NGINX, Git, starts Docker, initializes Swarm, and deploys the NGINX config.
+
+Steps:
+Run the following command to execute the playbook:
+
+
+ansible-playbook -i hosts ansible/provision.yml
+The playbook automates:
+
+Installing required packages.
+
+Starting Docker and NGINX.
+
+Initializing Docker Swarm.
+
+Deploying the NGINX config.
+
+Example Playbook Content (ansible/provision.yml)
 ---
-
-##  Live Application
-
-> http://18.212.71.237/
-
----
-
-##  Project Structure
-
-. ├── src/ # Yii2 App (from GitHub) │ ├── Dockerfile # Container config ├── docker-compose.yml # Swarm definition ├── ansible/ │ └── provision.yml # Server provisioning playbook ├── nginx/ │ └── default.conf # NGINX host-based proxy config ├── .github/ │ └── workflows/ │ └── deploy.yml # GitHub Actions CI/CD workflow
-
-
----
-
-##  Setup Instructions
-
-### 1. Launch and Connect to AWS EC2
-- Launch an Ubuntu EC2 instance.
-- Open ports **22**, **80**, and **8080** in the EC2 security group.
-- Login into the instance by EC2 Instance connect
-
-
-2.  Provision Server with Ansible
-Requirements:
-Ansible installed locally and SSH access to EC2 instance
-
-provision.yml:
------------------
-    ---
 - hosts: web
   become: true
   tasks:
@@ -44,7 +103,7 @@ provision.yml:
         state: present
         update_cache: yes
 
-    - name: Start Docker
+    - name: Start Docker service
       service:
         name: docker
         state: started
@@ -53,83 +112,44 @@ provision.yml:
     - name: Initialize Docker Swarm
       shell: docker swarm init || true
 
-    - name: Copy NGINX config
+    - name: Copy NGINX config to the server
       copy:
-        src: ../assignment-2-nginx-host-proxy/nginx/default.conf
+        src: ../nginx/default.conf
         dest: /etc/nginx/sites-available/default
 
-    - name: Restart NGINX
+    - name: Test NGINX config
+      command: nginx -t
+
+    - name: Restart NGINX service
       service:
         name: nginx
         state: restarted
 
+Running Ansible
+Once the playbook is executed, Docker and NGINX will be set up, and the Yii2 app will be ready for deployment.
 
+Verifying Docker and NGINX are Up
+To confirm Docker and NGINX are running:
 
+docker ps  
+sudo systemctl status nginx  
 
-Run the Command From your project root directory, run:
+CI/CD with GitHub Actions
 
- ansible-playbook -i hosts ansible/provision.yml
+In last, I implemented a CI/CD pipeline using GitHub Actions. Whenever I push code to the main branch, it automatically:
 
+Builds the Docker image.
 
-What it does:
+Pushes the image to Docker Hub.
 
-Installs Docker, Git, and NGINX
+SSHs into the EC2 server.
 
-Initializes Docker Swarm
+Updates the running Docker Swarm service with the new image.
 
-Configures host-level NGINX as reverse proxy
+This workflow enables continuous deployment without manual intervention.
 
-3.  Docker Setup
-Dockerfile (inside src/):
-
-Dockerfile
---------------
-FROM php:7.4-apache
-RUN docker-php-ext-install pdo pdo_mysql
-COPY . /var/www/html/
-WORKDIR /var/www/html/web
-
-
-docker-compose.yml:
----------------------
-version: "3.8"
-services:
-  yii2-app:
-    image: ashutosh1999/yii2-app:latest
-    ports:
-      - "8080:80"
-    deploy:
-      replicas: 1
-      restart_policy:
-        condition: on-failure
-
-
-5.  NGINX Config (on host)
-
-nginx/default.conf:
---------------------
-
-server {
-    listen 80;
-    server_name yourdomain.com;
-
-    location / {
-        proxy_pass http://18.212.71.237:8080;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-    }
-}
-Copy to EC2 at /etc/nginx/sites-available/default, 
-then:
-
-sudo nginx -t
-sudo systemctl reload nginx
-
-
-5.  CI/CD with GitHub Actions
-.github/workflows/deploy.yml:
------------------------------------
-
+GitHub Actions Workflow File (.github/workflows/deploy.yml)
+======================================
 name: Deploy Yii2 App
 
 on:
@@ -163,55 +183,27 @@ jobs:
           script: |
             docker pull ashutosh1999/yii2-app:latest
             docker service update --image ashutosh1999/yii2-app:latest yii2_app
-Required GitHub Secrets:
-DOCKER_USERNAME
+Triggering the Workflow
+To trigger the workflow, simply push code to the main branch in your repository. The GitHub Actions pipeline will:
 
-DOCKER_PASSWORD
+Build and push the Docker image.
 
-HOST (EC2 IP)
+SSH into the EC2 instance and update the running Docker service.
 
-USERNAME (e.g., ubuntu)
+Verifying the Container After Deployment
+After deployment, open your browser and visit http://<your-ec2-public-ip>/ to verify that the updated Yii2 app is running.
 
-PRIVATE_KEY (your SSH private key)
+Assumptions
+NGINX is configured directly on the EC2 host, not within a container.
 
+DockerHub credentials are stored in GitHub Secrets for secure access.
 
- 
- How to Test Deployment
-Push code to main branch.
+Docker Swarm is used for orchestration, and the service is deployed using the docker stack deploy command.
 
-GitHub Actions will:
+Ansible is used to automate the setup of the EC2 instance.
 
-Build and push Docker image
+GitHub Actions automates the CI/CD pipeline for building and deploying the Docker image.
 
-SSH into EC2
+Conclusion
+With these assignments, I’ve automated the entire setup process using Docker, NGINX, Ansible, and GitHub Actions. The result is a fully automated deployment pipeline for the Yii2 PHP application, which can be easily updated and managed.
 
-Pull and update Docker Swarm service
-
-Visit the page:
-
-  http://18.212.71.237/
-
-
- Assumptions
-
-* NGINX is running on the EC2 host, not in a container.
-
-* Docker Swarm is used for deploying a single-node service.
-
-* Yii2 app runs from the /web directory.
-
-* EC2 security group allows ports 22, 80, and 8080.
-
-* Docker image is pushed to Docker Hub (ashutosh1999/yii2-app).
-
-
- Cleanup
-To remove the Docker service:
- docker service rm yii2_app
-
-To stop Docker Swarm (optional):
- docker swarm leave --force
-
-
- Author
-Ashutosh – DevOps Assessment
