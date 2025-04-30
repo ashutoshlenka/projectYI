@@ -92,7 +92,7 @@ docker-compose.yml:
 version: "3.8"
 services:
   yii2-app:
-    image: yourdockerhubusername/yii2-app:latest
+    image: ashutosh1999/yii2-app:latest
     ports:
       - "8080:80"
     deploy:
@@ -111,7 +111,7 @@ server {
     server_name yourdomain.com;
 
     location / {
-        proxy_pass http://localhost:8080;
+        proxy_pass http://18.212.71.237:8080;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
     }
@@ -143,13 +143,13 @@ jobs:
         uses: actions/checkout@v2
 
       - name: Build Docker Image
-        run: docker build -t yourdockerhubusername/yii2-app:latest ./src
+        run: docker build -t ashutosh1999/yii2-app:latest ./src
 
       - name: Login to DockerHub
         run: echo "${{ secrets.DOCKER_PASSWORD }}" | docker login -u "${{ secrets.DOCKER_USERNAME }}" --password-stdin
 
       - name: Push Docker Image
-        run: docker push yourdockerhubusername/yii2-app:latest
+        run: docker push ashutosh1999/yii2-app:latest
 
       - name: SSH and Update Docker Swarm
         uses: appleboy/ssh-action@v0.1.6
@@ -158,8 +158,8 @@ jobs:
           username: ${{ secrets.USERNAME }}
           key: ${{ secrets.PRIVATE_KEY }}
           script: |
-            docker pull yourdockerhubusername/yii2-app:latest
-            docker service update --image yourdockerhubusername/yii2-app:latest yii2_app
+            docker pull ashutosh1999/yii2-app:latest
+            docker service update --image ashutosh1999/yii2-app:latest yii2_app
 Required GitHub Secrets:
 DOCKER_USERNAME
 
@@ -199,7 +199,7 @@ Visit the page:
 
 * EC2 security group allows ports 22, 80, and 8080.
 
-* Docker image is pushed to Docker Hub (yourdockerhubusername/yii2-app).
+* Docker image is pushed to Docker Hub (ashutosh1999/yii2-app).
 
 
  Cleanup
