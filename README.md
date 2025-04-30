@@ -31,6 +31,7 @@ Ansible installed locally and SSH access to EC2 instance
 
 provision.yml:
 -----------------
+    ---
 - hosts: web
   become: true
   tasks:
@@ -54,13 +55,15 @@ provision.yml:
 
     - name: Copy NGINX config
       copy:
-        src: ../nginx/default.conf
+        src: ../assignment-2-nginx-host-proxy/nginx/default.conf
         dest: /etc/nginx/sites-available/default
 
     - name: Restart NGINX
       service:
         name: nginx
         state: restarted
+
+
 
 
 Run the Command From your project root directory, run:
