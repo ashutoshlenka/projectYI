@@ -4,13 +4,13 @@ This project demonstrates a DevOps pipeline that deploys a Yii2 PHP application 
 
 ---
 
-## 🌐 Live Application
+##  Live Application
 
 > http://18.212.71.237/
 
 ---
 
-## ⚙️ Project Structure
+##  Project Structure
 
 . ├── src/ # Yii2 App (from GitHub) │ ├── Dockerfile # Container config ├── docker-compose.yml # Swarm definition ├── ansible/ │ └── provision.yml # Server provisioning playbook ├── nginx/ │ └── default.conf # NGINX host-based proxy config ├── .github/ │ └── workflows/ │ └── deploy.yml # GitHub Actions CI/CD workflow
 
